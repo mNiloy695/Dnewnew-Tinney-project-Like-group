@@ -53,3 +53,64 @@ class RegistrationSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(**validated_data)
         return user
         
+
+
+
+class LoginSerializer(serializers.Serializer):
+    phone=serializers.CharField()
+    country_code=serializers.CharField()
+    password=serializers.CharField()
+    
+    def validate(self, attrs):
+        phone=attrs.get("phone",None)
+        password=attrs.get("password",None)
+        country_code=attrs.get("country_code",None)
+        
+        if not phone:
+            raise serializers.ValidationError("Phone number must be required")
+        
+        try:
+            phone_number=PhoneNumber.from_string(
+                phone,
+                region=country_code
+            )
+            
+            if not phone_number.is_valid():
+                raise serializers.ValidationError("Invalid Phone Number Formate")
+            
+            try:
+                user=User.objects.get(phone=phone_number)
+            except User.DoesNotExist:
+                raise serializers.ValidationError("No  user found on this number")
+        
+        except NumberParseException:
+            raise serializers.ValidationError("Invalid phone number or country code")
+        
+        if not user.is_active:
+            raise serializers.ValidationError("Account is not activated")
+        
+        if not user.check_password(password):
+            raise serializers.ValidationError("Incorrect Password")
+        
+        attrs['user'] = user
+        return attrs
+        
+            
+
+from .models import UserProfile
+class UserProfileSerializer(serializers.ModelSerializer):
+    phone=serializers.SerializerMethodField(read_only=True)
+    class Meta:
+        model=UserProfile
+        fields=["id","user","avatar","name","email","gender","birth_date","phone"]
+        read_only_fields=['user','id']
+        
+    
+    def get_phone(self, instance):
+        if hasattr(instance.user,"phone"):
+            return instance.user.phone
+        return None
+        
+        
+        
+        

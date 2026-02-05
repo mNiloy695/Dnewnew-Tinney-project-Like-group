@@ -78,6 +78,7 @@ class OTP(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     code = models.CharField(max_length=4)
     created_at = models.DateTimeField(auto_now_add=True)
+    # is_used=models.BooleanField(default=False)
     type=models.CharField(max_length=20,choices=[('registration','registration'),('password_reset','password_reset')],default='registration')
     
     def is_expired(self):
@@ -87,3 +88,20 @@ class OTP(models.Model):
 
     def __str__(self):
         return f"OTP for {self.user.email} - {self.code}"
+    
+    
+GENDER=(
+    ("Male","Male"),
+    ("Female","Female"),
+    ("Intersex","Intersex")
+)
+
+class UserProfile(models.Model):
+    user=models.OneToOneField(User,on_delete=models.CASCADE,related_name="profile")
+    avatar=models.ImageField(upload_to="media/profile_image",null=True,blank=True)
+    name=models.CharField(max_length=100,null=True,blank=True)
+    birth_date=models.DateField(null=True,blank=True)
+    gender=models.CharField(choices=GENDER,max_length=10,blank=True,null=True)
+    email=models.EmailField(blank=True,null=True)
+    
+
