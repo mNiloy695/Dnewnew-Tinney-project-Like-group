@@ -73,13 +73,17 @@ class CustomUser(AbstractUser):
 #for otp
 from django.contrib.auth import get_user_model
 User=get_user_model()
-
+OTP_TYPE=(
+    ('active','active'),
+    ('reset','reset'),
+)
 class OTP(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE,related_name="otps",null=True)
     code = models.CharField(max_length=4)
+    type=models.CharField(choices=OTP_TYPE,null=True,blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     # is_used=models.BooleanField(default=False)
-    type=models.CharField(max_length=20,choices=[('registration','registration'),('password_reset','password_reset')],default='registration')
+    # type=models.CharField(max_length=20,choices=[('registration','registration'),('password_reset','password_reset')],default='registration')
     
     def is_expired(self):
         from django.utils import timezone
@@ -87,7 +91,7 @@ class OTP(models.Model):
         return timezone.now() > expiration_time
 
     def __str__(self):
-        return f"OTP for {self.user.email} - {self.code}"
+        return f"OTP - {self.code}"
     
     
 GENDER=(

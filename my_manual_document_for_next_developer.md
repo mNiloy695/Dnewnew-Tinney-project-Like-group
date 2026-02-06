@@ -29,4 +29,10 @@ Point 3 :
 
 
 
+Point 4: 
+   
+   The otp send in background and for this i used celery ,redis 
+
+
+
 

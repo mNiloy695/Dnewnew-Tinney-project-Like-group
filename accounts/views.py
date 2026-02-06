@@ -15,18 +15,23 @@ from django.conf import settings
 # from .phone_otp import otp_send
 from .task import phone_otp_send
 
+from django.contrib.auth import get_user_model
+User=get_user_model()
 class ResgistrationView(APIView):
     def post(self,request):
         serializer=RegistrationSerializer(data=request.data)
         
         if serializer.is_valid():
             user=serializer.save()
+            user.is_active=False
+            user.save()
             otp_code=randint(1000,9999)
             
             try:
                 OTP.objects.create(
                 user=user,
-                code=otp_code
+                code=otp_code,
+                type="active"
             )
                 
             except Exception as e:
@@ -121,4 +126,47 @@ class LogoutView(APIView):
             
             
 
+from django.utils import timezone
 
+class ActiveUserAccountView(APIView):
+    def post(self, request):
+        phone = request.data.get("phone")
+        code = request.data.get("code")
+        otp_type = request.data.get("type")
+        
+        if not phone or not code or not otp_type:
+            
+            return Response(
+                {"error":"phone,code,otp_type  is required"},
+            )
+
+        otp = OTP.objects.select_related('user').filter(
+            user__phone=phone,
+            code=code,
+            type=otp_type
+        ).first()
+        
+        print(otp)
+      
+        if not otp:
+            return Response(
+                {"error": "OTP is invalid"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if otp.is_expired():
+            
+            return Response(
+                {"error": "OTP is expired"},
+                status=status.HTTP_400_BAD_REQUEST
+            ) 
+        
+        
+        user = otp.user
+        if not user.is_active:
+            user.is_active = True
+            user.save(update_fields=['is_active'])
+        
+        otp.delete()
+
+        return Response({"message": "User activated successfully"}, status=status.HTTP_200_OK)
