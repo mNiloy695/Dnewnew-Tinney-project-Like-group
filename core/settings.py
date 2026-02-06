@@ -30,6 +30,7 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS = []
 
 
+
 #JWT setting
 
 SIMPLE_JWT = {
@@ -39,7 +40,11 @@ SIMPLE_JWT = {
 
 }
 
+#twilio env
 
+TWILIO_ACCOUNT_SID=config("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN=config("TWILIO_AUTH_TOKEN")
+TWILIO_PHONE_NUMBER=config("TWILIO_PHONE_NUMBER")
 
 # Application definition
 
@@ -74,6 +79,13 @@ REST_FRAMEWORK = {
     )
     
 }
+
+#Celery setting
+INSTALLED_APPS += ["django_celery_results"] 
+CELERY_BROKER_URL =config("CELERY_BROKER_URL")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_BACKEND = "django-db"
 
 ROOT_URLCONF = 'core.urls'
 

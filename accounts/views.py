@@ -9,6 +9,11 @@ from .models import OTP
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt import token_blacklist
 from random import randint
+from twilio.rest import Client
+from django.conf import settings
+
+# from .phone_otp import otp_send
+from .task import phone_otp_send
 
 class ResgistrationView(APIView):
     def post(self,request):
@@ -23,14 +28,24 @@ class ResgistrationView(APIView):
                 user=user,
                 code=otp_code
             )
+                
             except Exception as e:
                 print("otp not crate a problem ",{e})
                 
+            
+            print("Here is your otp",otp_code)
+            
+            #phone_otp_send running in backgroud and it's imported from task.py
+            
+            message=phone_otp_send.delay(phone=str(user.phone),otp=otp_code,main_message="active you Tinny account")
+            
+            
             return Response({
-                "message":f"{user.phone} registered successfully"
-            })
+                "message": "OTP sent successfully! Check your SMS inbox.",
+                
+            },status=status.HTTP_200_OK)
         
-        return Response(serializer.errors)
+        return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
             
       
 class LoginView(APIView):
@@ -69,6 +84,7 @@ class CustomProfilePermission(permissions.BasePermission):
         return request.user==obj.user
 
 
+
 class UserProfileView(ModelViewSet):
     queryset=UserProfile.objects.select_related("user")
     serializer_class=UserProfileSerializer
@@ -82,16 +98,17 @@ class UserProfileView(ModelViewSet):
      
 
 
-
-
-
-
 #Logout View
 
 class LogoutView(APIView):
     def post(self,request):
         try:
-            refresh_token=request.data["refresh"]
+            refresh_token=request.data.get("refresh",None)
+            if not refresh_token:
+                return Response(
+                    {"error":"Refresh token not found"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             token=RefreshToken(refresh_token)
             token.blacklist()
             return Response({
@@ -103,3 +120,5 @@ class LogoutView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
             
             
+
+
