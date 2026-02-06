@@ -8,7 +8,7 @@ def otp_send(phone,otp_code,main_message):
                 settings.TWILIO_AUTH_TOKEN
                 )
         message=client.messages.create(
-                body=f"Here your one time OTP {otp_code} for {main_message}.Don't share it to anyone !",
+                body=f"Here your one time OTP {otp_code} for {main_message}.Don't share it to anyone !.It will expire within 3 min",
                 from_=settings.TWILIO_PHONE_NUMBER,
                 to=phone
             )
@@ -18,5 +18,7 @@ def otp_send(phone,otp_code,main_message):
     except Exception as e:
         print("error is occure")
         return f"A error is occure during sending otp {e}" 
+    
+
         
 

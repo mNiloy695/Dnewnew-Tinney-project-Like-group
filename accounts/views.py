@@ -11,10 +11,11 @@ from rest_framework_simplejwt import token_blacklist
 from random import randint
 from twilio.rest import Client
 from django.conf import settings
-
+from phonenumber_field.phonenumber import PhoneNumber
+from phonenumbers.phonenumberutil import NumberParseException
 # from .phone_otp import otp_send
 from .task import phone_otp_send
-
+from .validate_number import validated_phone_number
 from django.contrib.auth import get_user_model
 User=get_user_model()
 class ResgistrationView(APIView):
@@ -82,8 +83,6 @@ class LoginView(APIView):
 from .serializers import UserProfileSerializer
 from .models import UserProfile
 
-
-
 class CustomProfilePermission(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         return request.user==obj.user
@@ -130,20 +129,32 @@ from django.utils import timezone
 
 class ActiveUserAccountView(APIView):
     def post(self, request):
-        phone = request.data.get("phone")
-        code = request.data.get("code")
-        otp_type = request.data.get("type")
+        phone = request.data.get("phone",None)
+        code = request.data.get("code",None)
+        country_code=request.data.get("country_code",None)
         
-        if not phone or not code or not otp_type:
+        if not phone or not code  or not country_code:
             
             return Response(
-                {"error":"phone,code,otp_type  is required"},
+                {"error":"phone ,code, type , country_code is required"},
             )
-
+            
+            
+       #validate number
+        result=validated_phone_number(phone=phone,country_code=country_code)
+        if isinstance(result, dict) and "error" in result:
+            return Response(result, status=400)
+        
+        print("phone number ",result)
+        phone=result.as_e164
+        print(phone)
+        
+        
+        
         otp = OTP.objects.select_related('user').filter(
             user__phone=phone,
             code=code,
-            type=otp_type
+            type="active"
         ).first()
         
         print(otp)
@@ -170,3 +181,90 @@ class ActiveUserAccountView(APIView):
         otp.delete()
 
         return Response({"message": "User activated successfully"}, status=status.HTTP_200_OK)
+    
+    
+    
+    
+
+#forgot password
+
+class ForgotPasswordandResendView(APIView):
+    def post(self,request):
+        phone = request.data.get("phone",None)
+        country_code=request.data.get("country_code",None)
+        action=request.data.get("action",None)
+        if not phone or not country_code or not action:
+            return Response({"error":"phone, country_code , action fields are required !"})
+        
+        #validating number using my custom function
+        
+        if action not in ["reset","active"]:
+            return Response({"error":"action only be reset or active"},status=status.HTTP_400_BAD_REQUEST)
+        
+        result=validated_phone_number(phone=phone,country_code=country_code)
+        
+        if isinstance(result, dict) and "error" in result:
+            return Response(result, status=400)
+
+        
+        try:
+            user=User.objects.prefetch_related("otps").get(phone=phone)
+        except User.DoesNotExist:
+            return Response({"error":"Invalid user"})
+        
+        if action=="reset":
+            existing_otp = user.otps.filter(type="reset").first()
+            
+        if action=="active":
+            existing_otp = user.otps.filter(type="active").first()
+    
+
+        if existing_otp and not existing_otp.is_expired():
+            
+            return Response({"message":"you can resend request for otp after 3 min"})
+        
+        code=randint(1000,9999)
+        
+        
+        if action=="reset":
+            OTP.objects.create(
+            user=user,
+            code=code,
+            type="reset"
+            
+        )
+        phone_otp_send.delay(phone=phone,otp=code,main_message="reset password of Tinny account")
+        
+        if action=="active":
+              OTP.objects.create(
+            user=user,
+            code=code,
+            type="active"
+            
+        )
+        phone_otp_send.delay(phone=phone,otp=code,main_message="active Tinny account")
+        
+        #sent otp using my custom fuinction
+        
+       
+        
+        return Response(
+            {
+                "message":f"OTP  Sucessfully send to {phone} check your SMS box"
+            },status=status.HTTP_200_OK
+        )
+        
+        
+        
+        
+        
+        
+        
+#reset password
+
+
+        
+        
+        
+        
+            

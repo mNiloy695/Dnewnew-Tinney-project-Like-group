@@ -87,11 +87,14 @@ class OTP(models.Model):
     
     def is_expired(self):
         from django.utils import timezone
-        expiration_time = self.created_at + timezone.timedelta(minutes=10)
+        expiration_time = self.created_at + timezone.timedelta(minutes=3)
         return timezone.now() > expiration_time
 
     def __str__(self):
         return f"OTP - {self.code}"
+    
+    class Meta:
+        ordering=["-created_at"]
     
     
 GENDER=(
